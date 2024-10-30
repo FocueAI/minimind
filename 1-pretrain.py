@@ -56,20 +56,20 @@ def train_epoch(epoch, wandb):
 
         with ctx:
             out = model(X, Y)
-            loss = out.last_loss / args.accumulation_steps
-            loss_mask = loss_mask.view(-1)
+            loss = out.last_loss / args.accumulation_steps  # accumulation_steps是梯度累计量，也就是说不是在每个小批量后更新权重，而是积累多个小批量的梯度，然后在一起更新梯度
+            loss_mask = loss_mask.view(-1)                  # 这样可以在资源有限的情况下，模拟大批量的数据训练
             loss = torch.sum(loss * loss_mask) / loss_mask.sum()
-
-        scaler.scale(loss).backward()
+        # 对损失值 loss 进行缩放。这是为了防止在反向传播时由于低精度计算导致的梯度下溢问题。
+        scaler.scale(loss).backward() # backward() 计算梯度。。。。。。
 
         if (step + 1) % args.accumulation_steps == 0:
-            scaler.unscale_(optimizer)
-            torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
+            scaler.unscale_(optimizer) # 将优化器中的梯度除以之前缩放的因子，以确保梯度的数值正确。
+            torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip) # 梯度裁剪，防止梯度爆炸问题
 
-            scaler.step(optimizer)
-            scaler.update()
-
-            optimizer.zero_grad(set_to_none=True)
+            scaler.step(optimizer) # 更新梯度
+            scaler.update()   # 更新 GradScaler 的内部状态，为下一次缩放和更新准备。
+            # optimizer.zero_grad() # 默认操作也是常用操作!!  ====> 梯度清零， 但是显存依然占用
+            optimizer.zero_grad(set_to_none=True)  # 梯度设置为 None，显存都释放掉了!!
 
         if step % args.log_interval == 0:
             spend_time = time.time() - start_time
@@ -105,24 +105,40 @@ def train_epoch(epoch, wandb):
 def init_model():
     def count_parameters(model):
         return sum(p.numel() for p in model.parameters() if p.requires_grad)
-
+    # 创建一个分词器对象，
     tokenizer = AutoTokenizer.from_pretrained('./model/minimind_tokenizer')
-
+    """ 
+    ./model/minimind_tokenizer 该目录下通常需要 具有 以下文件
+    1. vocab.json (or vocab.txt) 
+       里面包含分词器识别的所有词汇 
+       {"<unk>":0,"<s>":1,"</s>":2 .....}
+    2. merges.txt
+       包含词汇合并规则，用于BPE(Byte Pair Encoding)分词器
+       每一行包含2个及以上的词汇单元（通常是字符或字符串），表示这些单元可以合并成一个更大的单元
+       格式：
+       he ll  ("he"和"ll"这2个词元被合并成了"hell",在实际应用中，在处理文本时，任何 "he" 后面紧跟 "ll" 的情况都会被替换为 "hell)
+    3. tokenizer.json
+       分词器的配置文件    
+    
+    4. tokenizer_config.json
+       分词器的配置文件
+    
+    """
     model = Transformer(lm_config).to(args.device)
     # moe_path = '_moe' if lm_config.use_moe else ''
 
     Logger(f'LLM总参数量：{count_parameters(model) / 1e6:.3f} 百万')
-    return model, tokenizer
+    return model, tokenizer   # 模型，分词器
 
 
 def init_distributed_mode():
     if not ddp: return
     global ddp_local_rank, DEVICE
 
-    dist.init_process_group(backend="nccl")
-    ddp_rank = int(os.environ["RANK"])
-    ddp_local_rank = int(os.environ["LOCAL_RANK"])
-    ddp_world_size = int(os.environ["WORLD_SIZE"])
+    dist.init_process_group(backend="nccl")       # 初始化进程组，dist为分布式通信包，多GPUs间通信的后端是：nccl
+    ddp_rank = int(os.environ["RANK"])            # 它代表当前进程的全局排名--在分布式环境中是唯一的
+    ddp_local_rank = int(os.environ["LOCAL_RANK"])# 当前进程在本地机器上的排名--在本机环境中是唯一的
+    ddp_world_size = int(os.environ["WORLD_SIZE"])# 代表整个分布式系统中的总进程数
     DEVICE = f"cuda:{ddp_local_rank}"
     torch.cuda.set_device(DEVICE)
 
@@ -161,7 +177,7 @@ if __name__ == "__main__":
     device_type = "cuda" if "cuda" in args.device else "cpu"
 
     args.wandb_run_name = f"MiniMind-Pretrain-Epoch-{args.epochs}-BatchSize-{args.batch_size}-LearningRate-{args.learning_rate}"
-
+    #     其实什么都不做                              自动混合精度（在训练中，自动将某些操作转换为更低(float32->float16), 以减少资源的使用，提高训练速度）
     ctx = nullcontext() if device_type == "cpu" else torch.cuda.amp.autocast()
 
     ddp = int(os.environ.get("RANK", -1)) != -1  # is this a ddp run?
@@ -170,16 +186,16 @@ if __name__ == "__main__":
         init_distributed_mode()
         args.device = torch.device(DEVICE)
 
-    if args.use_wandb and (not ddp or ddp_local_rank == 0):
-        import wandb
+    if args.use_wandb and (not ddp or ddp_local_rank == 0): # 表示当前进程是该机器上启动的第一个进程， 也就是”主进程“
+        import wandb  # 只有 单gpu训练/分布式训练的主进程中才做这件是
 
         wandb.init(project=args.wandb_project, name=args.wandb_run_name)
     else:
         wandb = None
 
     model, tokenizer = init_model()
-    df = pd.read_csv(args.data_path)
-    df = df.sample(frac=1.0)
+    df = pd.read_csv(args.data_path) # 读取数据， 其中的数据格式为 q,a
+    df = df.sample(frac=1.0) # 抽取样本的比列
     train_ds = PretrainDataset(df, tokenizer, max_length=max_seq_len)
     train_sampler = DistributedSampler(train_ds) if ddp else None
     train_loader = DataLoader(
@@ -192,7 +208,8 @@ if __name__ == "__main__":
         sampler=train_sampler
     )
 
-    scaler = torch.cuda.amp.GradScaler(enabled=(args.dtype in ['float16', 'bfloat16']))
+    scaler = torch.cuda.amp.GradScaler(enabled=(args.dtype in ['float16', 'bfloat16'])) # 在训练过程中，动态缩放梯度，以避免在低精度时出现数值下溢问题
+    # 由于float16和bfloat16的数值范围比float32小，直接进行反向传播时可能会导致梯度数值过小，从而被截断为0，影响模型训练
     optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
 
     if False and platform.system() != 'Windows' and float(torch.__version__.split('.')[0]) >= 2:

@@ -22,7 +22,7 @@ class LMConfig(PretrainedConfig):
             # Here are the specific configurations of MOE
             # When use_moe is false, the following is invalid
             ####################################################
-            use_moe: bool = False,
+            use_moe: bool = True,
             num_experts_per_tok=2,
             n_routed_experts=4,
             n_shared_experts: bool = True,
@@ -32,8 +32,8 @@ class LMConfig(PretrainedConfig):
             norm_topk_prob=True,
             **kwargs,
     ):
-        self.dim = dim
-        self.n_layers = n_layers
+        self.dim = dim                 #  可能需要调整的参数
+        self.n_layers = n_layers       #  可能需要调整的参数
         self.n_heads = n_heads
         self.n_kv_heads = n_kv_heads
         self.vocab_size = vocab_size
@@ -41,13 +41,13 @@ class LMConfig(PretrainedConfig):
         self.multiple_of = multiple_of
         self.norm_eps = norm_eps
         self.max_seq_len = max_seq_len
-        self.dropout = dropout
+        self.dropout = dropout         
         self.flash_attn = flash_attn
         ####################################################
         # Here are the specific configurations of MOE
         # When use_moe is false, the following is invalid
         ####################################################
-        self.use_moe = use_moe
+        self.use_moe = use_moe      #  可能需要调整的参数
         self.num_experts_per_tok = num_experts_per_tok  # 每个token选择的专家数量
         self.n_routed_experts = n_routed_experts  # 总的专家数量
         self.n_shared_experts = n_shared_experts  # 共享专家

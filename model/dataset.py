@@ -25,18 +25,18 @@ class PretrainDataset(Dataset):
 
     def __getitem__(self, index: int):
         #
-        sample = self.df.iloc[index]
-        text = f"{self.tokenizer.bos_token}{str(sample['text'])}{self.tokenizer.eos_token}"
-        input_id = self.tokenizer(text).data['input_ids'][:self.max_length]
+        sample = self.df.iloc[index]  # 取第 index 行
+        text = f"{self.tokenizer.bos_token}{str(sample['text'])}{self.tokenizer.eos_token}" # 将数据打包成一个 ”有头有尾“ 的形式
+        input_id = self.tokenizer(text).data['input_ids'][:self.max_length]   # 将字符数据 ===> index格式的整型 数据， 且通过max_length做数据截断
         text_len = len(input_id)
         # 没满最大长度的剩余部分
         padding_len = self.max_length - text_len
-        input_id = input_id + [self.padding] * padding_len
+        input_id = input_id + [self.padding] * padding_len   # 不满足 len=max_length ，就在后面的尾巴 上补充 padding
         # 0表示不计算损失
-        loss_mask = [1] * text_len + [0] * padding_len
+        loss_mask = [1] * text_len + [0] * padding_len    # 加padding的位置处，都设置成0! 这样在计算损失的时候可以忽略这些地方!!!!
 
         input_id = np.array(input_id)
-        X = np.array(input_id[:-1]).astype(np.int64)
+        X = np.array(input_id[:-1]).astype(np.int64)  # 基操!!!!
         Y = np.array(input_id[1:]).astype(np.int64)
         loss_mask = np.array(loss_mask[1:]).astype(np.int64)
         return torch.from_numpy(X), torch.from_numpy(Y), torch.from_numpy(loss_mask)

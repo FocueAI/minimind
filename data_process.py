@@ -12,7 +12,7 @@ from datasets import load_dataset
 
 bos_token = "<s>"
 eos_token = "</s>"
-
+"""  将 sft_data_zh.jsonl 格式的数据 转换成 sft_data_single.csv csv中分为 3列 <history>,<q>,<a>  """
 
 def pretrain_process(chunk_size=50000):
     chunk_idx = 0
@@ -42,7 +42,7 @@ def pretrain_process(chunk_size=50000):
 
 def sft_process(contain_history=False):
     file_name = 'sft_data.csv'
-    if not contain_history:
+    if not contain_history: # go this way!!
         file_name = 'sft_data_single.csv'
 
     def chinese_ratio(text):
