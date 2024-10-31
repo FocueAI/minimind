@@ -20,7 +20,7 @@ from model.LMConfig import LMConfig
 from model.dataset import SFTDataset
 
 warnings.filterwarnings('ignore')
-
+""" 与1-pretrain.py 可谓是一摸一样， 只是将 单句子 换成了 q,a 问答格式的句子（714W个问答对）"""
 
 def Logger(content):
     if not ddp or dist.get_rank() == 0:

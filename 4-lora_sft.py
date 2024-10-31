@@ -106,12 +106,12 @@ def init_model():
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name_or_path, trust_remote_code=True, use_fast=False)
     model = AutoModelForCausalLM.from_pretrained(model_name_or_path, trust_remote_code=True).to(args.device)
 
-    target_modules = find_all_linear_names(model)
+    target_modules = find_all_linear_names(model) # 找出该模型中的所有线性层
     peft_config = LoraConfig(
-        r=8,
+        r=8,   # 代表着 低秩矩阵的大小
         target_modules=target_modules
     )
-    model = get_peft_model(model, peft_config)
+    model = get_peft_model(model, peft_config)  # 将peft配置应用到模型上，创建一个新的peft模型，该函数会修改原始的模型，使其在微调时只更新指定的参数!!!
     model.print_trainable_parameters()
     model = model.to(args.device)
     return model, tokenizer

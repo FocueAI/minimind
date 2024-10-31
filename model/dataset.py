@@ -73,10 +73,10 @@ class SFTDataset(Dataset):
 
     def __getitem__(self, index: int):
         #
-        sample = self.df.iloc[index]
+        sample = self.df.iloc[index]  # sft_data_single.csv 这里面有
         history = self.safe_eval(sample['history'])
-        q = str(sample['q'])
-        a = str(sample['a'])
+        q = str(sample['q'])  # 问题句子
+        a = str(sample['a'])  # 答案句子
 
         messages = []
         for history_message in history:
