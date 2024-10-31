@@ -21,7 +21,7 @@ from model.LMConfig import LMConfig
 from model.dataset import PretrainDataset
 
 warnings.filterwarnings('ignore')
-
+""" 读取的是 <pretrain_data.csv> 包含5365条句子, 学习类似成语接龙的任务 """
 
 def Logger(content):
     if not ddp or dist.get_rank() == 0:
@@ -194,7 +194,7 @@ if __name__ == "__main__":
         wandb = None
 
     model, tokenizer = init_model()
-    df = pd.read_csv(args.data_path) # 读取数据， 其中的数据格式为 q,a
+    df = pd.read_csv(args.data_path) # 读取数据， 就是一长段的文本  含有 5636 行句子
     df = df.sample(frac=1.0) # 抽取样本的比列
     train_ds = PretrainDataset(df, tokenizer, max_length=max_seq_len)
     train_sampler = DistributedSampler(train_ds) if ddp else None
