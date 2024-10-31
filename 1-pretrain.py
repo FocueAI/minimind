@@ -21,7 +21,7 @@ from model.LMConfig import LMConfig
 from model.dataset import PretrainDataset
 
 warnings.filterwarnings('ignore')
-""" 读取的是 <pretrain_data.csv> 包含5365条句子, 学习类似成语接龙的任务 """
+""" 读取的是 <pretrain_data.csv> 包含536,4883 条句子, 学习类似成语接龙的任务 """
 
 def Logger(content):
     if not ddp or dist.get_rank() == 0:
